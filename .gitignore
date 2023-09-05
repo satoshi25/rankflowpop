@@ -1,0 +1,10 @@
+.env
+/rankflowpop
+__pycache__/
+.idea/
+.venv
+lib/
+*.py[cod]
+.Python
+build/
+*.db
