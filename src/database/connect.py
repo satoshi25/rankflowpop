@@ -5,14 +5,11 @@ import os
 
 load_dotenv()
 
-conn = pymysql.connect(
-    host=os.getenv("HOST"),
-    user=os.getenv("USER"),
-    password=os.getenv("PASSEORD"),
-    port=int(os.getenv("PORT")),
-    db=os.getenv("DB"),
-    charset=os.getenv("CHARSET"),
+db = pymysql.connect(
+    host=os.getenv("DB_HOST"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    port=int(os.getenv("DB_PORT")),
+    db=os.getenv("DB_NAME"),
+    charset=os.getenv("DB_CHARSET")
 )
-
-cur = conn.cursor()
-
