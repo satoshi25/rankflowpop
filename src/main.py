@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 
 from src.schema.request import UserRequest
-from src.schema.response import UserResponse
+from src.schema.response import UserResponse, UserLoginResponse
 from src.service.user import UserService
 from src.database.connect import db
 
@@ -27,3 +27,20 @@ def user_sign_up_handler(
 
     db.close()
     return user
+
+
+@app.post("/user/login", status_code=200)
+def user_log_in_handler(
+    request: UserRequest,
+    user_service: UserService = Depends(),
+) -> UserLoginResponse:
+
+    access_token: UserLoginResponse | None = user_service.login_user(
+        username=request.username,
+        password=request.password
+    )
+
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Bad Request")
+
+    return access_token

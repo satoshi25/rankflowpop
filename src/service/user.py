@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import bcrypt
 import os
 
-from src.schema.response import UserResponse
+from src.schema.response import UserResponse, UserLoginResponse
 from src.database.repository import UserRepository
 
 load_dotenv()
@@ -44,7 +44,10 @@ class UserService:
         if not user:
             return None
 
-        raw_data: tuple = self.user_repo.create_user(username=username, password=hashed_password)
+        raw_data: tuple = self.user_repo.create_user(
+            username=username,
+            password=hashed_password
+        )
 
         user: UserResponse = UserResponse(
             id=raw_data[0],
@@ -52,3 +55,21 @@ class UserService:
         )
 
         return user
+
+    def login_user(self, username: str, password: str):
+        user: tuple = self.user_repo.get_user_by_username(username=username)
+        print(type(user[2]))
+        if not user:
+            return None
+
+        is_password_valid: bool = self.verify_password(
+            password=password,
+            hashed_password=user[2]
+        )
+
+        if not is_password_valid:
+            return None
+
+        access_token: str = self.create_jwt(username=username)
+        response_token: UserLoginResponse = UserLoginResponse(access_token=access_token)
+        return response_token

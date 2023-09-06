@@ -10,7 +10,7 @@ class UserRepository:
 
         sql: str = "SELECT * FROM user WHERE username = %s;"
         self.cursor.execute(sql, (username,))
-        user: tuple = self.cursor.fetchall()
+        user: tuple = self.cursor.fetchone()
 
         return user
 
