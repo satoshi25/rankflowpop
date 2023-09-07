@@ -17,5 +17,5 @@ class ProductRequest(BaseModel):
     keywords: List[KeywordRequest] = Field(..., max_items=2)
 
 
-class CreateProductRequest(BaseModel):
+class CreateProductsRequest(BaseModel):
     products: List[ProductRequest] = Field(..., max_items=5)

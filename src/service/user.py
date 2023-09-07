@@ -50,7 +50,7 @@ class UserService:
         hashed_password = self.hash_password(password=password)
         user: tuple = self.user_repo.get_user_by_username(username=username)
 
-        if not user:
+        if user:
             return None
 
         raw_data: tuple = self.user_repo.create_user(
