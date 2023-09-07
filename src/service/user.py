@@ -25,10 +25,10 @@ class UserService:
     def verify_password(self, password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(password.encode(self.encoding), hashed_password.encode(self.encoding))
 
-    def create_jwt(self, username: str) -> str:
+    def create_jwt(self, username: str, user_id: int) -> str:
         access_token: str = jwt.encode(
             {
-                "sub": username,
+                "sub": f"{username},{user_id}",
                 "exp": datetime.now() + timedelta(days=7)
             },
             key=self.secret_key,
@@ -36,6 +36,15 @@ class UserService:
         )
 
         return access_token
+
+    def verify_access_token(self, access_token: str) -> str | None:
+
+        try:
+            payload: dict = jwt.decode(access_token, key=self.secret_key, algorithms=[self.jwt_algorithm])
+        except jwt.ExpiredSignatureError:
+            return None
+
+        return payload.get("sub")
 
     def create_user(self, username: str, password: str) -> UserResponse | None:
         hashed_password = self.hash_password(password=password)
@@ -56,9 +65,9 @@ class UserService:
 
         return user
 
-    def login_user(self, username: str, password: str):
+    def login_user(self, username: str, password: str) -> UserLoginResponse | None:
         user: tuple = self.user_repo.get_user_by_username(username=username)
-        print(type(user[2]))
+
         if not user:
             return None
 
@@ -70,6 +79,6 @@ class UserService:
         if not is_password_valid:
             return None
 
-        access_token: str = self.create_jwt(username=username)
+        access_token: str = self.create_jwt(username=user[1], user_id=user[0])
         response_token: UserLoginResponse = UserLoginResponse(access_token=access_token)
         return response_token
