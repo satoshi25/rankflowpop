@@ -1,7 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException
 
-from src.schema.request import UserRequest
-from src.schema.response import UserResponse, UserLoginResponse
+from src.schema.request import UserRequest, ProductRequest
+from src.schema.response import UserResponse, UserLoginResponse, ProductResponse
+from src.security import get_access_token
+from src.service.product import ProductService
 from src.service.user import UserService
 from src.database.connect import db
 
@@ -25,7 +27,6 @@ def user_sign_up_handler(
     if not user:
         raise HTTPException(status_code=400, detail="User Already Exist")
 
-    db.close()
     return user
 
 
@@ -44,3 +45,25 @@ def user_log_in_handler(
         raise HTTPException(status_code=400, detail="Bad Request")
 
     return access_token
+
+
+@app.post("/user/product")
+def create_user_product_handler(
+    request: ProductRequest,
+    access_token: str = Depends(get_access_token),
+    prod_service: ProductService = Depends()
+) -> ProductResponse:
+
+    product_response: ProductResponse | None = prod_service.create_user_product(
+        request=request,
+        access_token=access_token
+    )
+    if not product_response:
+        raise HTTPException(status_code=401, detail="Not Authorized")
+
+    return product_response
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    db.close()
