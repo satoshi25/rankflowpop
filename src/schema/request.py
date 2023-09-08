@@ -9,13 +9,9 @@ class UserRequest(BaseModel):
 
 class KeywordRequest(BaseModel):
     keyword: str
-    rule: str
 
 
 class ProductRequest(BaseModel):
     product_url: str
     keywords: List[KeywordRequest] = Field(..., max_items=2)
 
-
-class CreateProductsRequest(BaseModel):
-    products: List[ProductRequest] = Field(..., max_items=5)

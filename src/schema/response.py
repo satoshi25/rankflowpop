@@ -14,14 +14,9 @@ class UserLoginResponse(BaseModel):
 class KeywordResponse(BaseModel):
     id: int
     keyword: str
-    rule: str
 
 
 class ProductResponse(BaseModel):
     id: int
     product_url: str
     keywords: List[KeywordResponse]
-
-
-class CreateProductsResponse(BaseModel):
-    products: List[ProductResponse]
