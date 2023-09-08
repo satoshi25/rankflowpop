@@ -1,8 +1,8 @@
 from typing import List
 
 from src.database.connect import db
-from src.schema.request import ProductRequest
-from src.schema.response import ProductResponse, KeywordResponse
+from src.schema.request import CreateProductKeywordRequest, UpdateProductKeywordRequest
+from src.schema.response import ProductResponse, KeywordResponse, UserProductKeywordResponse
 
 
 class UserRepository:
@@ -43,77 +43,85 @@ class ProductRepository:
     def __init__(self):
         self.db = db
         self.cursor = db.cursor()
-
-    def create_user_product(
-        self,
-        user_id: int,
-        request: ProductRequest
-    ) -> ProductResponse:
-
-        sql_check_product: str = "SELECT id FROM product WHERE product_url = %s;"
-        sql_insert_product: str = "INSERT INTO product (product_url) VALUES(%s);"
-
-        sql_check_keyword: str = "SELECT id FROM keyword WHERE keyword = %s;"
-        sql_insert_keyword: str = "INSERT INTO keyword (keyword) VALUES(%s);"
-
-        sql_check_product_keyword: str = \
-            ("SELECT pk.id "
+        self.sql_check_product: str = "SELECT * FROM product WHERE product_url = %s;"
+        self.sql_check_keyword: str = "SELECT * FROM keyword WHERE keyword = %s;"
+        self.sql_check_product_keyword: str = \
+            ("SELECT * "
              "FROM product_keyword pk "
              "JOIN keyword k ON pk.keyword_id = k.id "
              "JOIN product p ON pk.product_id = p.id "
-             "WHERE k.keyword = %s AND p.product_url = %s;")
-
-        sql_insert_product_keyword: str = \
-            "INSERT INTO product_keyword (product_id, keyword_id) VALUES(%s, %s);"
-
-        sql_check_user_product_keyword: str = \
-            ("SELECT upk.id "
+             "WHERE k.id = %s AND p.id = %s;")
+        self.sql_check_user_product_keyword: str = \
+            ("SELECT * "
              "FROM user_product_keyword upk "
              "JOIN user u ON upk.user_id = u.id "
              "JOIN product_keyword pk ON upk.product_keyword_id = pk.id "
              "JOIN keyword k ON pk.keyword_id = k.id "
              "JOIN product p ON pk.product_id = p.id "
-             "WHERE u.id = %s AND p.product_url = %s AND k.keyword = %s;")
+             "WHERE u.id = %s AND p.id = %s AND k.id = %s;")
+        self.sql_insert_product: str = "INSERT INTO product (product_url) VALUES(%s);"
+        self.sql_insert_keyword: str = "INSERT INTO keyword (keyword) VALUES(%s);"
+        self.sql_insert_product_keyword: str = \
+            "INSERT INTO product_keyword (product_id, keyword_id) VALUES(%s, %s);"
 
-        sql_insert_user_product_keyword: str = \
+        self.sql_insert_user_product_keyword: str = \
             "INSERT INTO user_product_keyword (user_id, product_keyword_id) VALUES (%s, %s);"
 
-        self.cursor.execute(sql_check_product, (request.product_url,))
+    def create_user_product(
+        self,
+        user_id: int,
+        request: CreateProductKeywordRequest
+    ) -> UserProductKeywordResponse:
+
+        self.cursor.execute(self.sql_check_product, (request.product_url,))
         product_raw: tuple = self.cursor.fetchone()
         if not product_raw:
-            self.cursor.execute(sql_insert_product, (request.product_url,))
+            self.cursor.execute(self.sql_insert_product, (request.product_url,))
             self.db.commit()
             product_id: int = self.cursor.lastrowid
         else:
             product_id: int = product_raw[0]
-        request_keywords: List[KeywordResponse] = []
 
-        for keyword in request.keywords:
-            self.cursor.execute(sql_check_keyword, (keyword.keyword,))
-            keyword_raw: tuple = self.cursor.fetchone()
-            if not keyword_raw:
-                self.cursor.execute(sql_insert_keyword, (keyword.keyword,))
-                self.db.commit()
-                keyword_id: int = self.cursor.lastrowid
-            else:
-                keyword_id: int = keyword_raw[0]
+        self.cursor.execute(self.sql_check_keyword, (request.keyword,))
+        keyword_raw: tuple = self.cursor.fetchone()
+        if not keyword_raw:
+            self.cursor.execute(self.sql_insert_keyword, (request.keyword,))
+            self.db.commit()
+            keyword_id: int = self.cursor.lastrowid
+        else:
+            keyword_id: int = keyword_raw[0]
 
-            self.cursor.execute(sql_check_product_keyword, (product_id, keyword_id,))
-            product_keyword_raw: tuple = self.cursor.fetchone()
-            if not product_keyword_raw:
-                self.cursor.execute(sql_insert_product_keyword, (product_id, keyword_id,))
-                self.db.commit()
-                product_keyword_id: int = self.cursor.lastrowid
-            else:
-                product_keyword_id: int = product_keyword_raw[0]
+        self.cursor.execute(self.sql_check_product_keyword, (product_id, keyword_id,))
+        product_keyword_raw: tuple = self.cursor.fetchone()
+        if not product_keyword_raw:
+            self.cursor.execute(self.sql_insert_product_keyword, (product_id, keyword_id,))
+            self.db.commit()
+            product_keyword_id: int = self.cursor.lastrowid
+        else:
+            product_keyword_id: int = product_keyword_raw[0]
 
-            self.cursor.execute(sql_check_user_product_keyword, (user_id, product_id, keyword_id))
-            user_product_keyword_raw: tuple = self.cursor.fetchone()
-            if not user_product_keyword_raw:
-                self.cursor.execute(sql_insert_user_product_keyword, (user_id, product_keyword_id,))
-                self.db.commit()
+        self.cursor.execute(self.sql_check_user_product_keyword, (user_id, product_id, keyword_id))
+        user_product_keyword_raw: tuple = self.cursor.fetchone()
+        if not user_product_keyword_raw:
+            self.cursor.execute(self.sql_insert_user_product_keyword, (user_id, product_keyword_id,))
+            self.db.commit()
+            user_product_keyword_id: int = self.cursor.lastrowid
+        else:
+            user_product_keyword_id: int = user_product_keyword_raw[0]
 
-            request_keywords.append(KeywordResponse(id=keyword_id, keyword=keyword.keyword))
-        product: ProductResponse = ProductResponse(id=product_id, product_url=request.product_url, keywords=request_keywords)
+        keyword_response: KeywordResponse = KeywordResponse(
+            id=keyword_id,
+            keyword=request.keyword
+        )
 
-        return product
+        product_response: ProductResponse = ProductResponse(
+            id=product_id,
+            product_url=request.product_url,
+        )
+
+        user_product_response: UserProductKeywordResponse = UserProductKeywordResponse(
+            user_product_keyword_id=user_product_keyword_id,
+            product=product_response,
+            keyword=keyword_response
+        )
+        return user_product_response

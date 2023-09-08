@@ -7,11 +7,6 @@ class UserRequest(BaseModel):
     password: str
 
 
-class KeywordRequest(BaseModel):
-    keyword: str
-
-
-class ProductRequest(BaseModel):
+class CreateProductKeywordRequest(BaseModel):
     product_url: str
-    keywords: List[KeywordRequest] = Field(..., max_items=2)
-
+    keyword: str

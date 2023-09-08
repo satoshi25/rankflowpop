@@ -19,4 +19,9 @@ class KeywordResponse(BaseModel):
 class ProductResponse(BaseModel):
     id: int
     product_url: str
-    keywords: List[KeywordResponse]
+
+
+class UserProductKeywordResponse(BaseModel):
+    user_product_keyword_id: int
+    product: ProductResponse
+    keyword: KeywordResponse
