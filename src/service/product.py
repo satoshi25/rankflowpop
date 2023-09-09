@@ -39,3 +39,23 @@ class ProductService:
             return {"detail": "User Already Has 10 Product"}
 
         return user_product_create_response
+
+    def update_user_product(
+        self,
+        access_token: str,
+        request: UpdateProductKeywordRequest
+    ):
+
+        user_info: str | None = self.user_service.verify_access_token(access_token=access_token)
+
+        if not user_info:
+            return None
+
+        user_id: int = int(user_info.split(",")[1])
+
+        user_product_update_response: UserProductKeywordResponse = self.prod_repo.update_user_product(
+            user_id=user_id,
+            request=request
+        )
+
+        return user_product_update_response

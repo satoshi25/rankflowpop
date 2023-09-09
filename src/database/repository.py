@@ -135,3 +135,54 @@ class ProductRepository:
             return user_product_response
         else:
             return None
+
+    def update_user_product(
+        self,
+        user_id: int,
+        request: UpdateProductKeywordRequest,
+    ):
+
+        self.cursor.execute(self.sql_check_product, (request.product_url,))
+        product_raw: tuple = self.cursor.fetchone()
+
+        if not product_raw:
+            self.cursor.execute(self.sql_insert_product, (request.product_url,))
+            self.db.commit()
+            product_id: int = self.cursor.lastrowid
+        else:
+            product_id: int = product_raw[0]
+
+        self.cursor.execute(self.sql_check_keyword, (request.keyword,))
+        keyword_raw: tuple = self.cursor.fetchone()
+
+        if not keyword_raw:
+            self.cursor.execute(self.sql_insert_keyword, (request.keyword,))
+            self.db.commit()
+            keyword_id: int = self.cursor.lastrowid
+        else:
+            keyword_id: int = keyword_raw[0]
+
+        self.cursor.execute(self.sql_check_product_keyword, (product_id, keyword_id,))
+        product_keyword_raw: tuple = self.cursor.fetchone()
+        if not product_keyword_raw:
+            self.cursor.execute(self.sql_insert_product_keyword, (product_id, keyword_id,))
+            self.db.commit()
+            product_keyword_id: int = self.cursor.lastrowid
+        else:
+            product_keyword_id: int = product_keyword_raw[0]
+        self.cursor.execute(self.sql_update_user_product_keyword, (product_keyword_id, request.user_product_keyword_id, user_id))
+        self.db.commit()
+
+        response_keyword = KeywordResponse(id=keyword_id, keyword=request.keyword)
+        product_response: ProductResponse = ProductResponse(
+            id=product_id,
+            product_url=request.product_url
+        )
+
+        user_product_update_response: UserProductKeywordResponse = UserProductKeywordResponse(
+            user_product_keyword_id=request.user_product_keyword_id,
+            product=product_response,
+            keyword=response_keyword
+        )
+
+        return user_product_update_response
