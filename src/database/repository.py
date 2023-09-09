@@ -1,7 +1,7 @@
 from typing import List
 
 from src.database.connect import db
-from src.schema.request import CreateProductKeywordRequest, UpdateProductKeywordRequest
+from src.schema.request import ProductKeywordRequest
 from src.schema.response import ProductResponse, KeywordResponse, UserProductKeywordResponse
 
 
@@ -50,7 +50,7 @@ class ProductRepository:
              "FROM product_keyword pk "
              "JOIN keyword k ON pk.keyword_id = k.id "
              "JOIN product p ON pk.product_id = p.id "
-             "WHERE k.id = %s AND p.id = %s;")
+             "WHERE p.id = %s AND k.id = %s;")
 
         self.sql_insert_product: str = "INSERT INTO product (product_url) VALUES(%s);"
         self.sql_insert_keyword: str = "INSERT INTO keyword (keyword) VALUES(%s);"
@@ -74,7 +74,7 @@ class ProductRepository:
     def create_user_product(
         self,
         user_id: int,
-        request: CreateProductKeywordRequest
+        request: ProductKeywordRequest
     ) -> UserProductKeywordResponse | None:
 
         self.cursor.execute("SELECT COUNT(*) FROM user_product_keyword WHERE user_id = %s;", (user_id,))
@@ -139,7 +139,8 @@ class ProductRepository:
     def update_user_product(
         self,
         user_id: int,
-        request: UpdateProductKeywordRequest,
+        user_product_keyword_id: int,
+        request: ProductKeywordRequest,
     ):
 
         self.cursor.execute(self.sql_check_product, (request.product_url,))
@@ -170,7 +171,7 @@ class ProductRepository:
             product_keyword_id: int = self.cursor.lastrowid
         else:
             product_keyword_id: int = product_keyword_raw[0]
-        self.cursor.execute(self.sql_update_user_product_keyword, (product_keyword_id, request.user_product_keyword_id, user_id))
+        self.cursor.execute(self.sql_update_user_product_keyword, (product_keyword_id, user_product_keyword_id, user_id))
         self.db.commit()
 
         response_keyword = KeywordResponse(id=keyword_id, keyword=request.keyword)
@@ -180,7 +181,7 @@ class ProductRepository:
         )
 
         user_product_update_response: UserProductKeywordResponse = UserProductKeywordResponse(
-            user_product_keyword_id=request.user_product_keyword_id,
+            user_product_keyword_id=user_product_keyword_id,
             product=product_response,
             keyword=response_keyword
         )

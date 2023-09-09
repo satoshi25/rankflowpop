@@ -7,6 +7,6 @@ class UserRequest(BaseModel):
     password: str
 
 
-class CreateProductKeywordRequest(BaseModel):
+class ProductKeywordRequest(BaseModel):
     product_url: str
     keyword: str
