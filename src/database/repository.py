@@ -51,6 +51,12 @@ class ProductRepository:
              "JOIN keyword k ON pk.keyword_id = k.id "
              "JOIN product p ON pk.product_id = p.id "
              "WHERE k.id = %s AND p.id = %s;")
+
+        self.sql_insert_product: str = "INSERT INTO product (product_url) VALUES(%s);"
+        self.sql_insert_keyword: str = "INSERT INTO keyword (keyword) VALUES(%s);"
+        self.sql_insert_product_keyword: str = \
+            "INSERT INTO product_keyword (product_id, keyword_id) VALUES(%s, %s);"
+
         self.sql_check_user_product_keyword: str = \
             ("SELECT * "
              "FROM user_product_keyword upk "
@@ -59,69 +65,73 @@ class ProductRepository:
              "JOIN keyword k ON pk.keyword_id = k.id "
              "JOIN product p ON pk.product_id = p.id "
              "WHERE u.id = %s AND p.id = %s AND k.id = %s;")
-        self.sql_insert_product: str = "INSERT INTO product (product_url) VALUES(%s);"
-        self.sql_insert_keyword: str = "INSERT INTO keyword (keyword) VALUES(%s);"
-        self.sql_insert_product_keyword: str = \
-            "INSERT INTO product_keyword (product_id, keyword_id) VALUES(%s, %s);"
 
         self.sql_insert_user_product_keyword: str = \
             "INSERT INTO user_product_keyword (user_id, product_keyword_id) VALUES (%s, %s);"
+        self.sql_update_user_product_keyword: str = \
+            "UPDATE user_product_keyword SET product_keyword_id = %s WHERE id = %s AND user_id = %s;"
 
     def create_user_product(
         self,
         user_id: int,
         request: CreateProductKeywordRequest
-    ) -> UserProductKeywordResponse:
+    ) -> UserProductKeywordResponse | None:
 
-        self.cursor.execute(self.sql_check_product, (request.product_url,))
-        product_raw: tuple = self.cursor.fetchone()
-        if not product_raw:
-            self.cursor.execute(self.sql_insert_product, (request.product_url,))
-            self.db.commit()
-            product_id: int = self.cursor.lastrowid
+        self.cursor.execute("SELECT COUNT(*) FROM user_product_keyword WHERE user_id = %s;", (user_id,))
+        count: int = self.cursor.fetchone()[0]
+
+        if count <= 10:
+            self.cursor.execute(self.sql_check_product, (request.product_url,))
+            product_raw: tuple = self.cursor.fetchone()
+            if not product_raw:
+                self.cursor.execute(self.sql_insert_product, (request.product_url,))
+                self.db.commit()
+                product_id: int = self.cursor.lastrowid
+            else:
+                product_id: int = product_raw[0]
+
+            self.cursor.execute(self.sql_check_keyword, (request.keyword,))
+            keyword_raw: tuple = self.cursor.fetchone()
+            if not keyword_raw:
+                self.cursor.execute(self.sql_insert_keyword, (request.keyword,))
+                self.db.commit()
+                keyword_id: int = self.cursor.lastrowid
+            else:
+                keyword_id: int = keyword_raw[0]
+
+            self.cursor.execute(self.sql_check_product_keyword, (product_id, keyword_id,))
+            product_keyword_raw: tuple = self.cursor.fetchone()
+            if not product_keyword_raw:
+                self.cursor.execute(self.sql_insert_product_keyword, (product_id, keyword_id,))
+                self.db.commit()
+                product_keyword_id: int = self.cursor.lastrowid
+            else:
+                product_keyword_id: int = product_keyword_raw[0]
+
+            self.cursor.execute(self.sql_check_user_product_keyword, (user_id, product_id, keyword_id))
+            user_product_keyword_raw: tuple = self.cursor.fetchone()
+            if not user_product_keyword_raw:
+                self.cursor.execute(self.sql_insert_user_product_keyword, (user_id, product_keyword_id,))
+                self.db.commit()
+                user_product_keyword_id: int = self.cursor.lastrowid
+            else:
+                user_product_keyword_id: int = user_product_keyword_raw[0]
+
+            keyword_response: KeywordResponse = KeywordResponse(
+                id=keyword_id,
+                keyword=request.keyword
+            )
+
+            product_response: ProductResponse = ProductResponse(
+                id=product_id,
+                product_url=request.product_url,
+            )
+
+            user_product_response: UserProductKeywordResponse = UserProductKeywordResponse(
+                user_product_keyword_id=user_product_keyword_id,
+                product=product_response,
+                keyword=keyword_response
+            )
+            return user_product_response
         else:
-            product_id: int = product_raw[0]
-
-        self.cursor.execute(self.sql_check_keyword, (request.keyword,))
-        keyword_raw: tuple = self.cursor.fetchone()
-        if not keyword_raw:
-            self.cursor.execute(self.sql_insert_keyword, (request.keyword,))
-            self.db.commit()
-            keyword_id: int = self.cursor.lastrowid
-        else:
-            keyword_id: int = keyword_raw[0]
-
-        self.cursor.execute(self.sql_check_product_keyword, (product_id, keyword_id,))
-        product_keyword_raw: tuple = self.cursor.fetchone()
-        if not product_keyword_raw:
-            self.cursor.execute(self.sql_insert_product_keyword, (product_id, keyword_id,))
-            self.db.commit()
-            product_keyword_id: int = self.cursor.lastrowid
-        else:
-            product_keyword_id: int = product_keyword_raw[0]
-
-        self.cursor.execute(self.sql_check_user_product_keyword, (user_id, product_id, keyword_id))
-        user_product_keyword_raw: tuple = self.cursor.fetchone()
-        if not user_product_keyword_raw:
-            self.cursor.execute(self.sql_insert_user_product_keyword, (user_id, product_keyword_id,))
-            self.db.commit()
-            user_product_keyword_id: int = self.cursor.lastrowid
-        else:
-            user_product_keyword_id: int = user_product_keyword_raw[0]
-
-        keyword_response: KeywordResponse = KeywordResponse(
-            id=keyword_id,
-            keyword=request.keyword
-        )
-
-        product_response: ProductResponse = ProductResponse(
-            id=product_id,
-            product_url=request.product_url,
-        )
-
-        user_product_response: UserProductKeywordResponse = UserProductKeywordResponse(
-            user_product_keyword_id=user_product_keyword_id,
-            product=product_response,
-            keyword=keyword_response
-        )
-        return user_product_response
+            return None
