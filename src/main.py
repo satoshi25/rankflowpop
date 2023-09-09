@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 
 from src.schema.request import UserRequest, ProductKeywordRequest
-from src.schema.response import UserResponse, UserLoginResponse, UserProductKeywordResponse
+from src.schema.response import UserResponse, UserLoginResponse, UserProductKeywordResponse, ProductResponse
 from src.security import get_access_token
 from src.service.product import ProductService
 from src.service.user import UserService
@@ -81,6 +81,25 @@ def update_user_product_handler(
         raise HTTPException(status_code=401, detail=user_product_response["detail"])
 
     return user_product_response
+
+
+@app.delete("/user/product/{user_product_keyword_id}", status_code=204)
+def delete_user_product_handler(
+    user_product_keyword_id: int,
+    access_token: str = Depends(get_access_token),
+    prod_service: ProductService = Depends()
+) -> None:
+
+    user_product_delete_response: UserProductKeywordResponse | dict = prod_service.delete_user_product(
+        user_product_keyword_id=user_product_keyword_id,
+        access_token=access_token
+    )
+
+    if type(user_product_delete_response) != ProductResponse:
+        raise HTTPException(
+            status_code=user_product_delete_response["status_code"],
+            detail=user_product_delete_response["detail"]
+        )
 
 
 @app.on_event("shutdown")

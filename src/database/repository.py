@@ -71,6 +71,9 @@ class ProductRepository:
         self.sql_update_user_product_keyword: str = \
             "UPDATE user_product_keyword SET product_keyword_id = %s WHERE id = %s AND user_id = %s;"
 
+        self.sql_delete_check_user_product_keyword: str = "SELECT * FROM user_product_keyword WHERE id = %s;"
+        self.sql_delete_user_product_keyword: str = "DELETE FROM user_product_keyword WHERE id = %s;"
+
     def create_user_product(
         self,
         user_id: int,
@@ -187,3 +190,26 @@ class ProductRepository:
         )
 
         return user_product_update_response
+
+    def delete_user_product(
+        self,
+        user_id: int,
+        user_product_keyword_id: int,
+    ) -> ProductResponse | dict:
+        self.cursor.execute(self.sql_delete_check_user_product_keyword, (user_product_keyword_id,))
+        check_user_product_keyword: tuple = self.cursor.fetchone()
+
+        if not check_user_product_keyword:
+            return {"status_code": 404, "detail": "Product Not Found"}
+        elif check_user_product_keyword[1] != user_id:
+            return {"status_code": 400, "detail": "Bad Request"}
+        else:
+            self.cursor.execute(self.sql_delete_user_product_keyword, (user_product_keyword_id,))
+            self.db.commit()
+
+            user_delete_result: ProductResponse = ProductResponse(
+                id=user_product_keyword_id,
+                product_url=f"{user_product_keyword_id}"
+            )
+
+        return user_delete_result

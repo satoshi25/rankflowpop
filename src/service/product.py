@@ -3,7 +3,7 @@ from typing import List
 
 from src.database.repository import UserRepository, ProductRepository
 from src.schema.request import ProductKeywordRequest
-from src.schema.response import UserProductKeywordResponse
+from src.schema.response import UserProductKeywordResponse, ProductResponse
 from src.service.user import UserService
 
 
@@ -61,3 +61,23 @@ class ProductService:
         )
 
         return user_product_update_response
+
+    def delete_user_product(
+        self,
+        access_token: str,
+        user_product_keyword_id: int,
+    ) -> ProductResponse | dict:
+
+        user_info: str | None = self.user_service.verify_access_token(access_token=access_token)
+
+        if not user_info:
+            return {"status_code": 401, "detail": "Not Authorized"}
+
+        user_id: int = int(user_info.split(",")[1])
+
+        user_product_delete_response: ProductResponse | dict = self.prod_repo.delete_user_product(
+            user_id=user_id,
+            user_product_keyword_id=user_product_keyword_id,
+        )
+
+        return user_product_delete_response
