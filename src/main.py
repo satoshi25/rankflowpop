@@ -2,9 +2,10 @@ from fastapi import FastAPI, Depends, HTTPException
 
 from src.schema.request import UserRequest, ProductKeywordRequest
 from src.schema.response import UserResponse, UserLoginResponse, UserProductKeywordResponse, ProductResponse, \
-    RankingListResponse, UserProductListResponse
+    UserProductListResponse, RankingListResponse
 from src.security import get_access_token
 from src.service.product import ProductService
+from src.service.ranking import RankingService
 from src.service.user import UserService
 from src.database.connect import db
 
@@ -120,6 +121,25 @@ def get_user_product_handler(
         )
 
     return user_product_response
+
+
+@app.get("/products/ranking", status_code=200)
+def get_products_ranking_handler(
+    access_token: str = Depends(get_access_token),
+    rank_service: RankingService = Depends()
+) -> RankingListResponse:
+
+    ranking_list_response: RankingListResponse | dict = rank_service.get_product_ranking(
+        access_token=access_token
+    )
+
+    if type(ranking_list_response) != RankingListResponse:
+        raise HTTPException(
+            status_code=ranking_list_response["status_code"],
+            detail=ranking_list_response["detail"]
+        )
+
+    return ranking_list_response
 
 
 @app.on_event("shutdown")
