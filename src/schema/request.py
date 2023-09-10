@@ -1,5 +1,4 @@
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel
 
 
 class UserRequest(BaseModel):
@@ -9,4 +8,5 @@ class UserRequest(BaseModel):
 
 class ProductKeywordRequest(BaseModel):
     product_url: str
+    product_name: str
     keyword: str

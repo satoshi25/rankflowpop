@@ -3,7 +3,7 @@ from typing import List
 
 from src.database.repository import UserRepository, ProductRepository
 from src.schema.request import ProductKeywordRequest
-from src.schema.response import UserProductKeywordResponse, ProductResponse
+from src.schema.response import UserProductKeywordResponse, ProductResponse, UserProductListResponse, KeywordResponse
 from src.service.user import UserService
 
 
@@ -81,3 +81,22 @@ class ProductService:
         )
 
         return user_product_delete_response
+
+    def get_user_product(
+        self,
+        access_token: str,
+    ) -> UserProductListResponse | dict:
+        user_info: str | None = self.user_service.verify_access_token(access_token=access_token)
+
+        if not user_info:
+            return {"status_code": 401, "detail": "Not Authorized"}
+
+        user_id: int = int(user_info.split(",")[1])
+
+        user_product_list: UserProductListResponse | None = self.prod_repo.get_user_product(
+            user_id=user_id
+        )
+        if not user_product_list:
+            return {"status_code": 400, "detail": "Product List Not Found"}
+
+        return user_product_list
