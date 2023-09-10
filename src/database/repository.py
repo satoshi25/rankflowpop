@@ -2,7 +2,8 @@ from typing import List
 
 from src.database.connect import db
 from src.schema.request import ProductKeywordRequest
-from src.schema.response import ProductResponse, KeywordResponse, UserProductKeywordResponse, UserProductListResponse
+from src.schema.response import ProductResponse, KeywordResponse, UserProductKeywordResponse, UserProductListResponse, \
+    RankingResponse, RankingListResponse
 
 
 class UserRepository:
@@ -250,3 +251,54 @@ class ProductRepository:
 
         return get_product_list
 
+
+class RankingRepository:
+    def __init__(self):
+        self.db = db
+        self.cursor = db.cursor()
+        self.sql_select_ranking = (
+            "SELECT r.id, upk.user_id, upk.product_keyword_id, r.search_date, r.ranking "
+            "FROM (SELECT id, user_product_keyword_id, search_date, ranking, "
+            "ROW_NUMBER() OVER(PARTITION BY user_product_keyword_id ORDER BY search_date DESC) "
+            "AS row_num FROM record) r "
+            "JOIN user_product_keyword upk ON upk.id = r.user_product_keyword_id "
+            "WHERE r.row_num = 1 AND upk.user_id = %s;"
+        )
+        self.sql = (
+            "SELECT sub.id, sub.product_name, sub.keyword, sub.search_date, sub.ranking "
+            "FROM ("
+            "SELECT r.id, p.product_name, k.keyword, r.search_date, r.ranking FROM record as r "
+            "JOIN user_product_keyword upk ON r.user_product_keyword_id = upk.id "
+            "JOIN product_keyword pk ON upk.product_keyword_id = pk.id "
+            "JOIN product p ON pk.product_id = p.id "
+            "JOIN keyword k ON pk.keyword_id = k.id "
+            "WHERE upk.user_id = %s "
+            "ORDER BY r.id DESC "
+            "LIMIT 10) as sub "
+            "ORDER BY sub.ranking ASC;"
+        )
+
+    def get_product_ranking(
+        self,
+        user_id: int,
+    ) -> RankingListResponse | None:
+        self.cursor.execute(self.sql, (user_id,))
+        products_ranking_list: tuple = self.cursor.fetchall()
+
+        if len(products_ranking_list) == 0:
+            return None
+
+        ranking_response_list: List[RankingResponse] = []
+        for products_ranking in products_ranking_list:
+            ranking: RankingResponse = RankingResponse(
+                record_id=products_ranking[0],
+                product_name=products_ranking[1],
+                keyword=products_ranking[2],
+                search_date=products_ranking[3],
+                ranking=products_ranking[4]
+            )
+            ranking_response_list.append(ranking)
+        ranking_list_response: RankingListResponse = RankingListResponse(
+            ranking_list=ranking_response_list
+        )
+        return ranking_list_response
