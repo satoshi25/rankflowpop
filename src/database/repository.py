@@ -2,7 +2,7 @@ from typing import List
 
 from src.database.connect import db
 from src.schema.request import ProductKeywordRequest
-from src.schema.response import ProductResponse, KeywordResponse, UserProductKeywordResponse
+from src.schema.response import ProductResponse, KeywordResponse, UserProductKeywordResponse, UserProductListResponse
 
 
 class UserRepository:
@@ -43,7 +43,7 @@ class ProductRepository:
     def __init__(self):
         self.db = db
         self.cursor = db.cursor()
-        self.sql_check_product: str = "SELECT * FROM product WHERE product_url = %s;"
+        self.sql_check_product: str = "SELECT * FROM product WHERE product_url = %s AND product_name = %s;"
         self.sql_check_keyword: str = "SELECT * FROM keyword WHERE keyword = %s;"
         self.sql_check_product_keyword: str = \
             ("SELECT * "
@@ -52,7 +52,7 @@ class ProductRepository:
              "JOIN product p ON pk.product_id = p.id "
              "WHERE p.id = %s AND k.id = %s;")
 
-        self.sql_insert_product: str = "INSERT INTO product (product_url) VALUES(%s);"
+        self.sql_insert_product: str = "INSERT INTO product (product_url, product_name) VALUES(%s, %s);"
         self.sql_insert_keyword: str = "INSERT INTO keyword (keyword) VALUES(%s);"
         self.sql_insert_product_keyword: str = \
             "INSERT INTO product_keyword (product_id, keyword_id) VALUES(%s, %s);"
@@ -73,6 +73,7 @@ class ProductRepository:
 
         self.sql_delete_check_user_product_keyword: str = "SELECT * FROM user_product_keyword WHERE id = %s;"
         self.sql_delete_user_product_keyword: str = "DELETE FROM user_product_keyword WHERE id = %s;"
+        self.sql_get_user_product_keyword: str = "SELECT upk.id, p.id, p.product_url, p.product_name, k.id, k.keyword FROM user_product_keyword as upk JOIN product_keyword pk ON upk.product_keyword_id = pk.id JOIN product p ON pk.product_id = p.id JOIN keyword k ON pk.keyword_id = k.id WHERE upk.user_id = %s;"
 
     def create_user_product(
         self,
@@ -83,11 +84,11 @@ class ProductRepository:
         self.cursor.execute("SELECT COUNT(*) FROM user_product_keyword WHERE user_id = %s;", (user_id,))
         count: int = self.cursor.fetchone()[0]
 
-        if count <= 10:
-            self.cursor.execute(self.sql_check_product, (request.product_url,))
+        if count < 10:
+            self.cursor.execute(self.sql_check_product, (request.product_url, request.product_name,))
             product_raw: tuple = self.cursor.fetchone()
             if not product_raw:
-                self.cursor.execute(self.sql_insert_product, (request.product_url,))
+                self.cursor.execute(self.sql_insert_product, (request.product_url, request.product_name))
                 self.db.commit()
                 product_id: int = self.cursor.lastrowid
             else:
@@ -121,13 +122,14 @@ class ProductRepository:
                 user_product_keyword_id: int = user_product_keyword_raw[0]
 
             keyword_response: KeywordResponse = KeywordResponse(
-                id=keyword_id,
+                keyword_id=keyword_id,
                 keyword=request.keyword
             )
 
             product_response: ProductResponse = ProductResponse(
-                id=product_id,
+                product_id=product_id,
                 product_url=request.product_url,
+                product_name=request.product_name
             )
 
             user_product_response: UserProductKeywordResponse = UserProductKeywordResponse(
@@ -146,11 +148,11 @@ class ProductRepository:
         request: ProductKeywordRequest,
     ):
 
-        self.cursor.execute(self.sql_check_product, (request.product_url,))
+        self.cursor.execute(self.sql_check_product, (request.product_url, request.product_name))
         product_raw: tuple = self.cursor.fetchone()
 
         if not product_raw:
-            self.cursor.execute(self.sql_insert_product, (request.product_url,))
+            self.cursor.execute(self.sql_insert_product, (request.product_url, request.product_name))
             self.db.commit()
             product_id: int = self.cursor.lastrowid
         else:
@@ -179,8 +181,9 @@ class ProductRepository:
 
         response_keyword = KeywordResponse(id=keyword_id, keyword=request.keyword)
         product_response: ProductResponse = ProductResponse(
-            id=product_id,
-            product_url=request.product_url
+            product_id=product_id,
+            product_url=request.product_url,
+            product_name=request.product_name
         )
 
         user_product_update_response: UserProductKeywordResponse = UserProductKeywordResponse(
@@ -208,8 +211,42 @@ class ProductRepository:
             self.db.commit()
 
             user_delete_result: ProductResponse = ProductResponse(
-                id=user_product_keyword_id,
-                product_url=f"{user_product_keyword_id}"
+                product_id=user_product_keyword_id,
+                product_url=f"{user_product_keyword_id}",
+                product_name=f"{user_product_keyword_id}"
             )
 
         return user_delete_result
+
+    def get_user_product(
+        self,
+        user_id: int,
+    ) -> UserProductListResponse | None:
+        self.cursor.execute(self.sql_get_user_product_keyword, (user_id,))
+        user_product_tuple: tuple = self.cursor.fetchall()
+
+        if len(user_product_tuple) == 0:
+            return None
+        user_get_response_list: List[UserProductKeywordResponse] = []
+        for user_product in user_product_tuple:
+            product: ProductResponse = ProductResponse(
+                product_id=user_product[1],
+                product_url=user_product[2],
+                product_name=user_product[3]
+            )
+            keyword: KeywordResponse = KeywordResponse(
+                keyword_id=user_product[4],
+                keyword=user_product[5]
+            )
+            user_product_keyword: UserProductKeywordResponse = UserProductKeywordResponse(
+                user_product_keyword_id=user_product[0],
+                product=product,
+                keyword=keyword
+            )
+            user_get_response_list.append(user_product_keyword)
+        get_product_list: UserProductListResponse = UserProductListResponse(
+            product_list=user_get_response_list
+        )
+
+        return get_product_list
+
