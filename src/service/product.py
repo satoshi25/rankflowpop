@@ -1,9 +1,8 @@
 from fastapi import Depends
-from typing import List
 
 from src.database.repository import UserRepository, ProductRepository
 from src.schema.request import ProductKeywordRequest
-from src.schema.response import UserProductKeywordResponse, ProductResponse, UserProductListResponse, KeywordResponse
+from src.schema.response import UserProductKeywordResponse, ProductResponse, UserProductListResponse
 from src.service.user import UserService
 
 

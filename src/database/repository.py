@@ -85,7 +85,7 @@ class ProductRepository:
         self.cursor.execute("SELECT COUNT(*) FROM user_product_keyword WHERE user_id = %s;", (user_id,))
         count: int = self.cursor.fetchone()[0]
 
-        if count < 10:
+        if count < 5:
             self.cursor.execute(self.sql_check_product, (request.product_url, request.product_name,))
             product_raw: tuple = self.cursor.fetchone()
             if not product_raw:
