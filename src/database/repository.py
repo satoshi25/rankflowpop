@@ -44,7 +44,11 @@ class ProductRepository:
     def __init__(self):
         self.db = db
         self.cursor = db.cursor()
-        self.sql_check_product: str = "SELECT * FROM product WHERE product_url = %s AND product_name = %s;"
+        self.sql_check_product: str = \
+            ("SELECT * FROM product "
+             "WHERE product_url = %s "
+             "AND product_name = %s "
+             "AND store_name = %s;")
         self.sql_check_keyword: str = "SELECT * FROM keyword WHERE keyword = %s;"
         self.sql_check_product_keyword: str = \
             ("SELECT * "
@@ -53,7 +57,7 @@ class ProductRepository:
              "JOIN product p ON pk.product_id = p.id "
              "WHERE p.id = %s AND k.id = %s;")
 
-        self.sql_insert_product: str = "INSERT INTO product (product_url, product_name) VALUES(%s, %s);"
+        self.sql_insert_product: str = "INSERT INTO product (product_url, product_name, store_name) VALUES(%s, %s, %s);"
         self.sql_insert_keyword: str = "INSERT INTO keyword (keyword) VALUES(%s);"
         self.sql_insert_product_keyword: str = \
             "INSERT INTO product_keyword (product_id, keyword_id) VALUES(%s, %s);"
@@ -74,7 +78,13 @@ class ProductRepository:
 
         self.sql_delete_check_user_product_keyword: str = "SELECT * FROM user_product_keyword WHERE id = %s;"
         self.sql_delete_user_product_keyword: str = "DELETE FROM user_product_keyword WHERE id = %s;"
-        self.sql_get_user_product_keyword: str = "SELECT upk.id, p.id, p.product_url, p.product_name, k.id, k.keyword FROM user_product_keyword as upk JOIN product_keyword pk ON upk.product_keyword_id = pk.id JOIN product p ON pk.product_id = p.id JOIN keyword k ON pk.keyword_id = k.id WHERE upk.user_id = %s;"
+        self.sql_get_user_product_keyword: str = \
+            ("SELECT upk.id, p.id, p.product_url, p.product_name, p.store_name, k.id, k.keyword "
+             "FROM user_product_keyword as upk "
+             "JOIN product_keyword pk ON upk.product_keyword_id = pk.id "
+             "JOIN product p ON pk.product_id = p.id "
+             "JOIN keyword k ON pk.keyword_id = k.id "
+             "WHERE upk.user_id = %s;")
 
     def create_user_product(
         self,
@@ -86,10 +96,16 @@ class ProductRepository:
         count: int = self.cursor.fetchone()[0]
 
         if count < 5:
-            self.cursor.execute(self.sql_check_product, (request.product_url, request.product_name,))
+            self.cursor.execute(
+                self.sql_check_product,
+                (request.product_url, request.product_name, request.store_name,)
+            )
             product_raw: tuple = self.cursor.fetchone()
             if not product_raw:
-                self.cursor.execute(self.sql_insert_product, (request.product_url, request.product_name))
+                self.cursor.execute(
+                    self.sql_insert_product,
+                    (request.product_url, request.product_name, request.store_name,)
+                )
                 self.db.commit()
                 product_id: int = self.cursor.lastrowid
             else:
@@ -130,7 +146,8 @@ class ProductRepository:
             product_response: ProductResponse = ProductResponse(
                 product_id=product_id,
                 product_url=request.product_url,
-                product_name=request.product_name
+                product_name=request.product_name,
+                store_name=request.store_name
             )
 
             user_product_response: UserProductKeywordResponse = UserProductKeywordResponse(
@@ -149,11 +166,17 @@ class ProductRepository:
         request: ProductKeywordRequest,
     ):
 
-        self.cursor.execute(self.sql_check_product, (request.product_url, request.product_name))
+        self.cursor.execute(
+            self.sql_check_product,
+            (request.product_url, request.product_name, request.store_name,)
+        )
         product_raw: tuple = self.cursor.fetchone()
 
         if not product_raw:
-            self.cursor.execute(self.sql_insert_product, (request.product_url, request.product_name))
+            self.cursor.execute(
+                self.sql_insert_product,
+                (request.product_url, request.product_name, request.store_name,)
+            )
             self.db.commit()
             product_id: int = self.cursor.lastrowid
         else:
@@ -177,14 +200,18 @@ class ProductRepository:
             product_keyword_id: int = self.cursor.lastrowid
         else:
             product_keyword_id: int = product_keyword_raw[0]
-        self.cursor.execute(self.sql_update_user_product_keyword, (product_keyword_id, user_product_keyword_id, user_id))
+        self.cursor.execute(
+            self.sql_update_user_product_keyword,
+            (product_keyword_id, user_product_keyword_id, user_id)
+        )
         self.db.commit()
 
-        response_keyword = KeywordResponse(id=keyword_id, keyword=request.keyword)
+        response_keyword: KeywordResponse = KeywordResponse(keyword_id=keyword_id, keyword=request.keyword)
         product_response: ProductResponse = ProductResponse(
             product_id=product_id,
             product_url=request.product_url,
-            product_name=request.product_name
+            product_name=request.product_name,
+            store_name=request.store_name
         )
 
         user_product_update_response: UserProductKeywordResponse = UserProductKeywordResponse(
@@ -214,7 +241,8 @@ class ProductRepository:
             user_delete_result: ProductResponse = ProductResponse(
                 product_id=user_product_keyword_id,
                 product_url=f"{user_product_keyword_id}",
-                product_name=f"{user_product_keyword_id}"
+                product_name=f"{user_product_keyword_id}",
+                store_name=f"{user_product_keyword_id}"
             )
 
         return user_delete_result
@@ -233,11 +261,12 @@ class ProductRepository:
             product: ProductResponse = ProductResponse(
                 product_id=user_product[1],
                 product_url=user_product[2],
-                product_name=user_product[3]
+                product_name=user_product[3],
+                store_name=user_product[4]
             )
             keyword: KeywordResponse = KeywordResponse(
-                keyword_id=user_product[4],
-                keyword=user_product[5]
+                keyword_id=user_product[5],
+                keyword=user_product[6]
             )
             user_product_keyword: UserProductKeywordResponse = UserProductKeywordResponse(
                 user_product_keyword_id=user_product[0],
@@ -256,18 +285,10 @@ class RankingRepository:
     def __init__(self):
         self.db = db
         self.cursor = db.cursor()
-        self.sql_select_ranking = (
-            "SELECT r.id, upk.user_id, upk.product_keyword_id, r.search_date, r.ranking "
-            "FROM (SELECT id, user_product_keyword_id, search_date, ranking, "
-            "ROW_NUMBER() OVER(PARTITION BY user_product_keyword_id ORDER BY search_date DESC) "
-            "AS row_num FROM record) r "
-            "JOIN user_product_keyword upk ON upk.id = r.user_product_keyword_id "
-            "WHERE r.row_num = 1 AND upk.user_id = %s;"
-        )
-        self.sql = (
-            "SELECT sub.id, sub.product_name, sub.keyword, sub.search_date, sub.ranking "
+        self.sql_get_product_ranking = (
+            "SELECT sub.id, sub.product_name, sub.store_name, sub.keyword, sub.search_date, sub.ranking "
             "FROM ("
-            "SELECT r.id, p.product_name, k.keyword, r.search_date, r.ranking FROM record as r "
+            "SELECT r.id, p.product_name, p.store_name, k.keyword, r.search_date, r.ranking FROM record as r "
             "JOIN user_product_keyword upk ON r.user_product_keyword_id = upk.id "
             "JOIN product_keyword pk ON upk.product_keyword_id = pk.id "
             "JOIN product p ON pk.product_id = p.id "
@@ -282,7 +303,7 @@ class RankingRepository:
         self,
         user_id: int,
     ) -> RankingListResponse | None:
-        self.cursor.execute(self.sql, (user_id,))
+        self.cursor.execute(self.sql_get_product_ranking, (user_id,))
         products_ranking_list: tuple = self.cursor.fetchall()
 
         if len(products_ranking_list) == 0:
@@ -293,9 +314,10 @@ class RankingRepository:
             ranking: RankingResponse = RankingResponse(
                 record_id=products_ranking[0],
                 product_name=products_ranking[1],
-                keyword=products_ranking[2],
-                search_date=products_ranking[3],
-                ranking=products_ranking[4]
+                store_name=products_ranking[2],
+                keyword=products_ranking[3],
+                search_date=products_ranking[4],
+                ranking=products_ranking[5]
             )
             ranking_response_list.append(ranking)
         ranking_list_response: RankingListResponse = RankingListResponse(

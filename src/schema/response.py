@@ -21,6 +21,7 @@ class ProductResponse(BaseModel):
     product_id: int
     product_url: str
     product_name: str
+    store_name: str
 
 
 class UserProductKeywordResponse(BaseModel):
@@ -36,6 +37,7 @@ class UserProductListResponse(BaseModel):
 class RankingResponse(BaseModel):
     record_id: int
     product_name: str
+    store_name: str
     keyword: str
     search_date: date
     ranking: int
