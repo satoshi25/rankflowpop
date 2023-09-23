@@ -295,7 +295,7 @@ class RankingRepository:
             "JOIN keyword k ON pk.keyword_id = k.id "
             "WHERE upk.user_id = %s "
             "ORDER BY r.id DESC "
-            "LIMIT 10) as sub "
+            "LIMIT 5) as sub "
             "ORDER BY sub.ranking ASC;"
         )
 
